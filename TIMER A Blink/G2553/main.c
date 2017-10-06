@@ -29,9 +29,9 @@ int main(void)
 	return 0;
 }
 
-	//Timer Interrupt Service Routine
-	#pragma vector = TIMER0_A0_VECTOR
-	__interrupt void Timer_A(void) {
-		P1OUT ^= BIT0; 						// Toggle P1.0 (LED)
-		TACCTL0 &= ~CCIFG;
-	}
+//Timer Interrupt Service Routine
+#pragma vector = TIMER0_A0_VECTOR
+__interrupt void Timer_A(void) {
+	P1OUT ^= BIT0; 						// Toggle P1.0 (LED)
+	TACCTL0 &= ~CCIFG;
+}
