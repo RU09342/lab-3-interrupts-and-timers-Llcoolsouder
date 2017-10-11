@@ -8,6 +8,16 @@
  *      Author: Lonnie Souder II
  */
 
+
+// Function to initiate TA0 with a specific frequency in Hz
+// Assume TA0CTL = TASSEL_2 + MC_1 + ID_2
+void setTimerFrequency(int f)
+{
+    int n;
+    n = 250000 / f; //250000 / 10 = 25000
+    TA0CCR0 = n; // [( 10^6 / 4) / (25000) = 10Hz)]
+}
+
 int main(void)
 {
 	WDTCTL = WDTPW | WDTHOLD;				// stop watchdog timer
@@ -21,7 +31,8 @@ int main(void)
 	//			This means bits need only to be set; not cleared.
 
 	TACTL |= TASSEL_2 + ID_1 + MC_1;		// Select clock source, clk divider, clk mode
-	TACCR0 = 0x7D00;						// Set clock period to 32000/8000000 [s]
+	//TACCR0 = 0x7D00;						// Set clock period to 32000/250000 [s]
+	setTimerFrequency(10);
 	TACCTL0 |= CCIE;						// Enable Timer A capture/compare interrupt
 
 	_BIS_SR(LPM1_bits + GIE);				// Enter Low Power Mode 1 and enable global interrupt
