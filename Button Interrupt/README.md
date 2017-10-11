@@ -1,30 +1,52 @@
 # Button Interrupt
-Last lab you were introduced to the idea of "Polling" where in you would constantly check the status of the P1IN register to see if something has changed. While your code may have worked, it ends up spending a ton of time just checking something that has not changed. What we can do instead is use another two registers available to us from the GPIO peripheral, P1IE and P1IES, to allow our processor to just chill out and wait until something happens to act upon it. Without spending too much space on this README with explanations, what makes these interrupts tick is the following code:
+In this part of the lab, I use a new method to handle inputs. In previous labs, the _polling_ technique was used. However, this takes a lot of processing power (CPU cycles) and a lot of power (Watts) in general. Instead this lab uses _interrupts_ to handle inputs immediately without the processor running constant checks on them. This is allows the processor to 1.) run in low power mode, and 2.) run other code while interrupts are not being serviced. The code below is specifically for the MSP430G2553. It was written to put the processor in "sleep mode" until a button is pushed, at which point, an LED is toggled.
 
-'''c
+```
+#include <msp430.h> 
+
+int main(void)
+{
+	WDTCTL = WDTPW | WDTHOLD;	  // stop watchdog timer
+	
+	P1SEL &= ~(BIT0 | BIT3);    // Set P1.0 (LED) and P1.3 (Button) as GPIO
+	P1SEL2 &= ~(BIT0 | BIT3);
+
+  P1DIR &= ~BIT3;             // Set P1.3 (Button) as input
+  P1DIR |= BIT0;              // Set P1.0 (LED) as output
+
+	P1REN |= BIT3;              // Enable resistor on P1.3 (Button)
+	P1OUT |= BIT3;              // Select pullup resistor
+
+	P1IE |= BIT3;               // Enable interrupt on P1.3 (Button)
+	P1IES |= BIT3;              // Set "Interrupt Edge Select" to falling edge
+	P1IFG &= ~BIT3;             // Clear interrupt flag on P1.3 (Button)
+
+	_BIS_SR(LPM4_bits + GIE);	// Enter Low Power Mode 4 and enable global interrupt
+}
+
+//Port 1 Interrupt Service Routine
+#pragma vector = PORT1_VECTOR
+__interrupt void PORT_1(void) {
+	P1OUT ^= BIT0; 				// Toggle P1.0 (LED)
+	P1IFG &= ~BIT3;
+}
+```
+As you have probably already noticed, this code sets 3 new registers: ```P1IE```, ```P1IES```, and ```P1IFG```; P1IE is stands for "Port 1 Interrupt Enable," and it does exactly that. It enables an interrupt on Port 1. P1IES stands for "Port 1 Interrupt Edge Select." This register is used to choose which transition on a particular pin will trigger an interrupt (low to high or high to low). P1IFG stands for "Port 1 Interrupt Flag." An interrupt is triggered when this is set. More on this later.
+
+The other difference shown in the above code is the following line:
+```
+_BIS_SR(LPM4_bits + GIE);
+```
+This function call sets the processor to Low Power Mode 4 which essentially leaves the processor idle until an interrupt is triggered. It also sets ```GIE``` which stands for "General Interrupt Enable." Without this set, no interrupts will trigger.
+
+##Interrupt Service Routines
+interrupt service routines are the code that is executed upon triggering an interrupt. The basic form for them is as follows.
+```
 #pragma vector=PORT1_VECTOR
 __interrupt void Port_1(void)
 {
+  // Do something
+  P1IFG &= ~BIT3;
 }
-'''
-
-While you still need to initialize the Ports to be interrupt enabled and clear the flags, this "Pragma Vector" tells the compiler that when a particular interrupt occurs, run this code. 
-
-## A word of caution...
-While you might be willing to just jump straight in and begin using example code you may find, I would seriously take a few minutes and find a few good videos or tutorials to help understand exactly what is happening in the processor. I implore you to do this since you will inevitably have issues in the future which are solved by not understanding how the processor processes interrupts. A prime example is when I once tried implementing UART and I did not realize that you had to clear a flag or else my code would get stuck in an infinite loop. Hours of my life are now gone thanks to me at the time not understanding how interrupts worked with the peripherals I was utilizing. A few resources I have used in the past include:
-* https://youtu.be/GR8S2XT47eI?t=1334
-* http://processors.wiki.ti.com/index.php/MSP430_LaunchPad_Interrupt_vs_Polling
-* http://www.simplyembedded.org/tutorials/msp430-interrupts/
-
-## Task
-Your goal for this part of the lab is to replicate your button code from Lab 2, where the LED should change states only when the button is pressed. This can be extended to include behaviors such as only have the LED on when the button is depressed, or have the LED blink one color when pressed and another when it is let go. Another behavior extends from the second lab which is speed control based on the button presses. For example, have the rate of the LED cycle between a "low", "Medium", and "High" rate of speed.
-
-## Extra Work 
-### Binary Counter/Shift Register
-Either use a function generator, another processor, or a button to control your microcontroller as an 8-bit binary counter using 8 LEDs to indicate the current status of the counter.
-
-### Multiple Buttons
-Come up with a behavior of your own that incorporates needing to use two buttons or more and these two buttons must be implemented using interrupts.
-
-### (Recommended) Energy Trace
-Using the built in EnergyTrace(R) software in CCS and the corresponding supporting hardware on the MSP430 development platforms, analyze the power consumption between the button based blink code you wrote last week versus this week. What can you do to decrease the amount of power used within the microcontroller in this code? Take a look at the MSP430FR5994 and the built in SuperCap and see how long your previous code and the new code lasts. For a quick intro to EnergyTrace(R), take a look at this video: https://youtu.be/HqeDthLrcsg
+```
+It is very important to clear the interrupt flag during the interrupt service routine. Otherwise, the processor may continue to trigger interrupts which will cause the processor to get stuck on the same interrupt indefinitely.
