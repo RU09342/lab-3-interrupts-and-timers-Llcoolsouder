@@ -39,7 +39,7 @@ _BIS_SR(LPM4_bits + GIE);
 ```
 This function call sets the processor to Low Power Mode 4 which essentially leaves the processor idle until an interrupt is triggered. It also sets ```GIE``` which stands for "General Interrupt Enable." Without this set, no interrupts will trigger.
 
-##Interrupt Service Routines
+## Interrupt Service Routines
 interrupt service routines are the code that is executed upon triggering an interrupt. The basic form for them is as follows.
 ```
 #pragma vector=PORT1_VECTOR
